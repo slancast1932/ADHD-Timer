@@ -21,7 +21,7 @@ export function useTimer() {
   
   const workerRef = useRef<Worker | null>(null)
   const startTimeRef = useRef<number>(0)
-  const { defaultFocus, defaultShort, defaultLong, completionSound, addXp, completeSession, updateDailyStats } = useAppStore()
+  const { defaultFocus, defaultShort, defaultLong, completionSound, addXp, completeSession, updateDailyStats, updateQuestsOnSessionComplete } = useAppStore()
   
   // Initialize Web Worker
   useEffect(() => {
@@ -92,11 +92,12 @@ export function useTimer() {
     addXp(baseXp)
     completeSession(minutes)
     updateDailyStats(minutes)
+    updateQuestsOnSessionComplete(minutes)
     
     // Play sound and show confetti
     playCompletionSound(completionSound)
     triggerConfetti()
-  }, [state.mode, defaultFocus, defaultShort, defaultLong, completionSound, addXp, completeSession, updateDailyStats])
+  }, [state.mode, defaultFocus, defaultShort, defaultLong, completionSound, addXp, completeSession, updateDailyStats, updateQuestsOnSessionComplete])
   
   const startTimer = useCallback((mode: 'focus' | 'short' | 'long') => {
     const durations = { focus: defaultFocus, short: defaultShort, long: defaultLong }

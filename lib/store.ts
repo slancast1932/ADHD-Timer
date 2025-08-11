@@ -17,6 +17,8 @@ export interface Quest {
   type: 'daily' | 'weekly'
   status: 'active' | 'completed' | 'claimed'
   completedAt?: Date
+  progress?: number
+  target?: number
 }
 
 export interface AppState {
@@ -50,6 +52,8 @@ export interface AppState {
   
   // Quests
   quests: Quest[]
+  weeklyXPGoal: number
+  weeklyXPEarned: number
   
   // Actions
   setTimerDefaults: (focus: number, short: number, long: number) => void
@@ -64,6 +68,8 @@ export interface AppState {
   updateDailyStats: (minutes: number) => void
   completeQuest: (questId: string) => void
   claimQuest: (questId: string) => void
+  updateQuestProgress: (questId: string, progress: number) => void
+  updateQuestsOnSessionComplete: (minutes: number) => void
   resetData: () => void
 }
 
@@ -78,7 +84,9 @@ const getDefaultQuests = (): Quest[] => [
     description: 'Finish 3 focus sessions today',
     xp: 50,
     type: 'daily',
-    status: 'active'
+    status: 'active',
+    progress: 0,
+    target: 3
   },
   {
     id: 'daily-2',
@@ -86,7 +94,9 @@ const getDefaultQuests = (): Quest[] => [
     description: 'Accumulate 2 hours of focus time today',
     xp: 100,
     type: 'daily',
-    status: 'active'
+    status: 'active',
+    progress: 0,
+    target: 120 // minutes
   },
   {
     id: 'weekly-1',
@@ -94,7 +104,9 @@ const getDefaultQuests = (): Quest[] => [
     description: 'Maintain focus for 7 consecutive days',
     xp: 300,
     type: 'weekly',
-    status: 'active'
+    status: 'active',
+    progress: 0,
+    target: 7
   },
   {
     id: 'weekly-2',
@@ -102,7 +114,9 @@ const getDefaultQuests = (): Quest[] => [
     description: 'Finish 20 focus sessions this week',
     xp: 250,
     type: 'weekly',
-    status: 'active'
+    status: 'active',
+    progress: 0,
+    target: 20
   }
 ]
 
@@ -138,6 +152,8 @@ export const useAppStore = create<AppState>()(
       }).reverse(),
       
       quests: getDefaultQuests(),
+      weeklyXPGoal: 500,
+      weeklyXPEarned: 0,
       
       // Actions
       setTimerDefaults: (focus, short, long) => set({
@@ -168,10 +184,12 @@ export const useAppStore = create<AppState>()(
       
       claimPendingXp: () => set(state => {
         const newTotalXp = state.totalXp + state.pendingXp
+        const newLevel = calculateLevel(newTotalXp)
+        
         return {
           totalXp: newTotalXp,
           pendingXp: 0,
-          level: calculateLevel(newTotalXp)
+          level: newLevel
         }
       }),
       
@@ -229,8 +247,58 @@ export const useAppStore = create<AppState>()(
           quests: state.quests.map(q =>
             q.id === questId ? { ...q, status: 'claimed' } : q
           ),
-          pendingXp: state.pendingXp + quest.xp
+          pendingXp: state.pendingXp + quest.xp,
+          weeklyXPEarned: state.weeklyXPEarned + quest.xp
         }
+      }),
+      
+      updateQuestProgress: (questId, progress) => set(state => {
+        const updatedQuests = state.quests.map(quest => {
+          if (quest.id !== questId) return quest
+          
+          const newProgress = Math.min(progress, quest.target || 0)
+          const shouldComplete = newProgress >= (quest.target || 0) && quest.status === 'active'
+          
+          return {
+            ...quest,
+            progress: newProgress,
+            status: shouldComplete ? 'completed' : quest.status,
+            completedAt: shouldComplete ? new Date() : quest.completedAt
+          }
+        })
+        
+        return { quests: updatedQuests }
+      }),
+      
+      updateQuestsOnSessionComplete: (minutes) => set(state => {
+        const updatedQuests = state.quests.map(quest => {
+          if (quest.status !== 'active') return quest
+          
+          let newProgress = quest.progress || 0
+          
+          // Update quest progress based on quest type
+          if (quest.id === 'daily-1' || quest.id === 'weekly-2') {
+            // Session-based quests: increment by 1
+            newProgress = (quest.progress || 0) + 1
+          } else if (quest.id === 'daily-2') {
+            // Time-based daily quest: add minutes
+            newProgress = (quest.progress || 0) + minutes
+          } else if (quest.id === 'weekly-1') {
+            // Streak-based quest: use current streak
+            newProgress = state.currentStreak
+          }
+          
+          const shouldComplete = newProgress >= (quest.target || 0)
+          
+          return {
+            ...quest,
+            progress: Math.min(newProgress, quest.target || 0),
+            status: shouldComplete ? 'completed' : quest.status,
+            completedAt: shouldComplete ? new Date() : quest.completedAt
+          }
+        })
+        
+        return { quests: updatedQuests }
       }),
       
       resetData: () => set({
@@ -250,7 +318,9 @@ export const useAppStore = create<AppState>()(
             sessions: 0
           }
         }).reverse(),
-        quests: getDefaultQuests()
+        quests: getDefaultQuests(),
+        weeklyXPGoal: 500,
+        weeklyXPEarned: 0
       })
     }),
     {
@@ -272,7 +342,9 @@ export const useAppStore = create<AppState>()(
         sessionsCompleted: state.sessionsCompleted,
         totalMinutes: state.totalMinutes,
         dailyStats: state.dailyStats,
-        quests: state.quests
+        quests: state.quests,
+        weeklyXPGoal: state.weeklyXPGoal,
+        weeklyXPEarned: state.weeklyXPEarned
       })
     }
   )
