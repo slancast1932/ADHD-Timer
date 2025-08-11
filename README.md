@@ -1,4 +1,4 @@
-# 🎯 FocusQuest - ADHD Timer & Focus App
+# 🎯 FocusRun - ADHD Timer & Focus App
 
 A gamified focus timer app designed specifically for people with ADHD to improve productivity and build healthy habits.
 
@@ -59,8 +59,8 @@ A gamified focus timer app designed specifically for people with ADHD to improve
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/slancast1932/focusquest-timer.git
-   cd focusquest-timer
+   git clone https://github.com/slancast1932/ADHD-Timer.git
+   cd ADHD-Timer
    ```
 
 2. **Install dependencies**

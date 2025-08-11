@@ -254,7 +254,7 @@ export const useAppStore = create<AppState>()(
       })
     }),
     {
-      name: 'focusquest-storage',
+      name: 'focusrun-storage',
       partialize: (state) => ({
         defaultFocus: state.defaultFocus,
         defaultShort: state.defaultShort,

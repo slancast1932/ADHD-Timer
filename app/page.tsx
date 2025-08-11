@@ -46,7 +46,7 @@ export default function DashboardPage() {
   
   // Check if user has completed onboarding
   React.useEffect(() => {
-    const hasOnboarded = localStorage.getItem('focusquest-onboarded')
+    const hasOnboarded = localStorage.getItem('focusrun-onboarded')
     if (!hasOnboarded) {
       setShowOnboarding(true)
     }
@@ -258,10 +258,10 @@ const OnboardingModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [reminderTime, setReminderTime] = useState('09:00')
   
   const handleComplete = () => {
-    localStorage.setItem('focusquest-onboarded', 'true')
-    localStorage.setItem('focusquest-goals', goals)
-    localStorage.setItem('focusquest-reward-style', rewardStyle)
-    localStorage.setItem('focusquest-reminder-time', reminderTime)
+    localStorage.setItem('focusrun-onboarded', 'true')
+    localStorage.setItem('focusrun-goals', goals)
+    localStorage.setItem('focusrun-reward-style', rewardStyle)
+    localStorage.setItem('focusrun-reminder-time', reminderTime)
     onClose()
   }
   
@@ -269,7 +269,7 @@ const OnboardingModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <Card className="w-full max-w-md mx-4">
         <CardHeader>
-          <CardTitle>Welcome to FocusQuest! 🎯</CardTitle>
+          <CardTitle>Welcome to FocusRun! 🎯</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {step === 1 && (

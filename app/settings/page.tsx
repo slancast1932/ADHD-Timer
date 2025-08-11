@@ -171,7 +171,7 @@ export default function SettingsPage() {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
-    link.download = `focusquest-backup-${new Date().toISOString().split('T')[0]}.json`
+    link.download = `focusrun-backup-${new Date().toISOString().split('T')[0]}.json`
     link.href = url
     link.click()
     URL.revokeObjectURL(url)
@@ -191,7 +191,7 @@ export default function SettingsPage() {
     <div className="max-w-4xl mx-auto space-y-8">
       <div className="text-center">
         <h1 className="text-3xl font-bold mb-2">Settings</h1>
-        <p className="text-muted-foreground">Customize your FocusQuest experience</p>
+        <p className="text-muted-foreground">Customize your FocusRun experience</p>
       </div>
       
       {/* Theme Settings */}
@@ -520,7 +520,7 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Info className="w-5 h-5" />
-            <span>About FocusQuest</span>
+            <span>About FocusRun</span>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">

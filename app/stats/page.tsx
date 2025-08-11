@@ -60,7 +60,7 @@ export default function StatsPage() {
         
         // Create download link
         const link = document.createElement('a')
-        link.download = `focusquest-progress-${new Date().toISOString().split('T')[0]}.png`
+        link.download = `focusrun-progress-${new Date().toISOString().split('T')[0]}.png`
         link.href = dataUrl
         link.click()
       }
@@ -86,7 +86,7 @@ export default function StatsPage() {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
-    link.download = `focusquest-data-${new Date().toISOString().split('T')[0]}.json`
+    link.download = `focusrun-data-${new Date().toISOString().split('T')[0]}.json`
     link.href = url
     link.click()
     URL.revokeObjectURL(url)
@@ -266,7 +266,7 @@ const ShareCard: React.FC<ShareCardProps> = ({
       {/* Header */}
       <div className="text-center mb-6">
         <div className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
-          FocusQuest Progress
+          FocusRun Progress
         </div>
         <div className="text-gray-600">My focus journey this week</div>
       </div>
@@ -314,7 +314,7 @@ const ShareCard: React.FC<ShareCardProps> = ({
       
       {/* Footer */}
       <div className="text-center mt-6 text-gray-500 text-sm">
-        Generated with FocusQuest • {new Date().toLocaleDateString()}
+        Generated with FocusRun • {new Date().toLocaleDateString()}
       </div>
     </div>
   )

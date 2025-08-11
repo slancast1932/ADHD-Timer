@@ -8,7 +8,7 @@ import { ThemeProvider } from '@/components/ThemeProvider'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'FocusQuest - ADHD Timer & Focus App',
+  title: 'FocusRun - ADHD Timer & Focus App',
   description: 'A gamified focus timer app designed for people with ADHD to improve productivity and build healthy habits.',
 }
 
