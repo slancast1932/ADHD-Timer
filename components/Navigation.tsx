@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/lib/store'
+import { useTimer } from '@/contexts/TimerContext'
+import { formatTime } from '@/lib/utils'
 import { Button } from '@/components/ui/Button'
 import { 
   Timer, 
@@ -19,7 +21,22 @@ import {
 
 export const Navigation: React.FC = () => {
   const pathname = usePathname()
+  const [mounted, setMounted] = React.useState(false)
   const { highContrast, toggleHighContrast } = useAppStore()
+  
+  // Safely get timer state with fallback
+  let timerState = null
+  try {
+    timerState = useTimer()
+  } catch (error) {
+    // Timer context not available during SSR
+  }
+  
+  const { isRunning = false, isPaused = false, remaining = 0, mode = 'focus' } = timerState || {}
+  
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
   
   const navItems = [
     { href: '/', label: 'Timer', icon: Timer },
@@ -33,7 +50,7 @@ export const Navigation: React.FC = () => {
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2">
+          <Link href="/" className="flex items-center space-x-2 flex-shrink-0">
             <div className="w-8 h-8 bg-gradient-to-br from-primary to-accent rounded-lg flex items-center justify-center">
               <Timer className="w-5 h-5 text-primary-foreground" />
             </div>
@@ -42,8 +59,8 @@ export const Navigation: React.FC = () => {
             </span>
           </Link>
           
-          {/* Navigation Links */}
-          <div className="hidden md:flex items-center space-x-1">
+          {/* Navigation Links - Center */}
+          <div className="flex items-center space-x-1">
             {navItems.map((item) => {
               const Icon = item.icon
               const isActive = pathname === item.href
@@ -53,21 +70,37 @@ export const Navigation: React.FC = () => {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                    "flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors relative z-10 cursor-pointer",
                     isActive
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:text-foreground hover:bg-accent"
                   )}
                 >
                   <Icon className="w-4 h-4" />
-                  <span>{item.label}</span>
+                  <span className="hidden sm:block">{item.label}</span>
                 </Link>
               )
             })}
           </div>
           
-          {/* Theme Toggle */}
-          <div className="flex items-center space-x-2">
+          {/* Right Side - Timer Status + Theme Toggle */}
+          <div className="flex items-center space-x-3 flex-shrink-0">
+            {/* Timer Status */}
+            {mounted && (isRunning || isPaused) && (
+              <div className="flex items-center space-x-2 px-3 py-1 bg-accent/50 rounded-lg">
+                <div className={cn(
+                  "w-2 h-2 rounded-full",
+                  isRunning && !isPaused ? "bg-green-500 animate-pulse" : "bg-yellow-500"
+                )} />
+                <span className="font-mono text-sm font-medium">
+                  {formatTime(remaining)}
+                </span>
+                <span className="text-xs text-muted-foreground capitalize">
+                  {mode}
+                </span>
+              </div>
+            )}
+            
             <Button
               variant="ghost"
               size="sm"
@@ -164,3 +197,5 @@ const ThemeToggle: React.FC = () => {
     </Button>
   )
 }
+
+

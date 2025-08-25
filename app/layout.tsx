@@ -4,6 +4,7 @@ import './globals.css'
 import { Navigation } from '@/components/Navigation'
 import { ConfettiCanvas } from '@/components/ui/ConfettiCanvas'
 import { ThemeProvider } from '@/components/ThemeProvider'
+import { TimerProvider } from '@/contexts/TimerContext'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -21,15 +22,19 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <ThemeProvider>
-          <div className="min-h-screen bg-background">
-            <Navigation />
-            <main className="container mx-auto px-4 py-8">
-              {children}
-            </main>
-            <ConfettiCanvas />
-          </div>
+          <TimerProvider>
+            <div className="min-h-screen bg-background">
+              <Navigation />
+              <main className="container mx-auto px-4 py-8">
+                {children}
+              </main>
+              <ConfettiCanvas />
+            </div>
+          </TimerProvider>
         </ThemeProvider>
       </body>
     </html>
   )
 }
+
+

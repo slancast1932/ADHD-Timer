@@ -30,21 +30,33 @@ function startTimer(seconds) {
   startTime = Date.now()
   isRunning = true
   
-  timerId = setInterval(() => {
+  // Use both setInterval and setTimeout for redundancy
+  const checkTime = () => {
+    if (!isRunning) return
+    
     const elapsed = Math.floor((Date.now() - startTime) / 1000)
     const remaining = Math.max(0, duration - elapsed)
     
     if (remaining <= 0) {
       clearInterval(timerId)
       isRunning = false
-      self.postMessage({ type: 'COMPLETE' })
+      self.postMessage({ 
+        type: 'COMPLETE', 
+        payload: { elapsed: duration, remaining: 0 } 
+      })
     } else {
       self.postMessage({ 
         type: 'TICK', 
         payload: { remaining, elapsed } 
       })
+      
+      // Schedule next check - use both methods for reliability
+      setTimeout(checkTime, 100)
     }
-  }, 100) // Update every 100ms for smooth animation
+  }
+  
+  timerId = setInterval(checkTime, 100) // Fallback interval
+  checkTime() // Initial check
 }
 
 function pauseTimer() {
@@ -79,3 +91,4 @@ function getCurrentTime() {
     payload: { remaining, elapsed } 
   })
 }
+

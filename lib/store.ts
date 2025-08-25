@@ -21,6 +21,20 @@ export interface Quest {
   target?: number
 }
 
+export interface Pet {
+  id: string
+  name: string
+  type: 'dragon' | 'plant' | 'cat'
+  stage: 'baby' | 'adult' | 'evolved'
+  hunger: number // 0-100
+  happiness: number // 0-100
+  health: number // 0-100
+  totalCareGiven: number
+  lastFed?: Date
+  lastPlayed?: Date
+  createdAt: Date
+}
+
 export interface AppState {
   // Timer settings
   defaultFocus: number
@@ -55,6 +69,9 @@ export interface AppState {
   weeklyXPGoal: number
   weeklyXPEarned: number
   
+  // Pet system
+  pet: Pet | null
+  
   // Actions
   setTimerDefaults: (focus: number, short: number, long: number) => void
   toggleReducedMotion: () => void
@@ -71,6 +88,13 @@ export interface AppState {
   updateQuestProgress: (questId: string, progress: number) => void
   updateQuestsOnSessionComplete: (minutes: number) => void
   resetData: () => void
+  
+  // Pet actions
+  createPet: (type: Pet['type'], name: string) => void
+  feedPet: (xpCost: number) => boolean
+  playWithPet: (xpCost: number) => boolean
+  healPet: (xpCost: number) => boolean
+  updatePetStatus: () => void
 }
 
 const calculateLevel = (xp: number): number => {
@@ -154,6 +178,8 @@ export const useAppStore = create<AppState>()(
       quests: getDefaultQuests(),
       weeklyXPGoal: 500,
       weeklyXPEarned: 0,
+      
+      pet: null,
       
       // Actions
       setTimerDefaults: (focus, short, long) => set({
@@ -293,7 +319,7 @@ export const useAppStore = create<AppState>()(
           return {
             ...quest,
             progress: Math.min(newProgress, quest.target || 0),
-            status: shouldComplete ? 'completed' : quest.status,
+            status: shouldComplete ? 'completed' as const : quest.status,
             completedAt: shouldComplete ? new Date() : quest.completedAt
           }
         })
@@ -320,7 +346,143 @@ export const useAppStore = create<AppState>()(
         }).reverse(),
         quests: getDefaultQuests(),
         weeklyXPGoal: 500,
-        weeklyXPEarned: 0
+        weeklyXPEarned: 0,
+        pet: null
+      }),
+      
+      // Pet functions
+      createPet: (type, name) => set(state => {
+        if (state.pet) return state // Pet already exists
+        
+        const newPet: Pet = {
+          id: crypto.randomUUID(),
+          name,
+          type,
+          stage: 'baby',
+          hunger: 100,
+          happiness: 100,
+          health: 100,
+          totalCareGiven: 0,
+          createdAt: new Date()
+        }
+        
+        return { pet: newPet }
+      }),
+      
+      feedPet: (xpCost) => {
+        const state = get()
+        if (!state.pet || state.totalXp < xpCost) return false
+        
+        set(state => {
+          if (!state.pet) return state
+          
+          const newHunger = Math.min(100, state.pet.hunger + 25)
+          const newHealth = Math.min(100, state.pet.health + 5)
+          const newTotalCare = state.pet.totalCareGiven + 1
+          
+          // Check for evolution
+          let newStage = state.pet.stage
+          if (newTotalCare >= 100 && state.pet.stage === 'baby') newStage = 'adult'
+          else if (newTotalCare >= 250 && state.pet.stage === 'adult') newStage = 'evolved'
+          
+          return {
+            pet: {
+              ...state.pet,
+              hunger: newHunger,
+              health: newHealth,
+              totalCareGiven: newTotalCare,
+              stage: newStage,
+              lastFed: new Date()
+            },
+            totalXp: state.totalXp - xpCost
+          }
+        })
+        return true
+      },
+      
+      playWithPet: (xpCost) => {
+        const state = get()
+        if (!state.pet || state.totalXp < xpCost) return false
+        
+        set(state => {
+          if (!state.pet) return state
+          
+          const newHappiness = Math.min(100, state.pet.happiness + 30)
+          const newHealth = Math.min(100, state.pet.health + 3)
+          const newTotalCare = state.pet.totalCareGiven + 1
+          
+          // Check for evolution
+          let newStage = state.pet.stage
+          if (newTotalCare >= 100 && state.pet.stage === 'baby') newStage = 'adult'
+          else if (newTotalCare >= 250 && state.pet.stage === 'adult') newStage = 'evolved'
+          
+          return {
+            pet: {
+              ...state.pet,
+              happiness: newHappiness,
+              health: newHealth,
+              totalCareGiven: newTotalCare,
+              stage: newStage,
+              lastPlayed: new Date()
+            },
+            totalXp: state.totalXp - xpCost
+          }
+        })
+        return true
+      },
+      
+      healPet: (xpCost) => {
+        const state = get()
+        if (!state.pet || state.totalXp < xpCost) return false
+        
+        set(state => {
+          if (!state.pet) return state
+          
+          const newHealth = Math.min(100, state.pet.health + 40)
+          const newTotalCare = state.pet.totalCareGiven + 1
+          
+          // Check for evolution
+          let newStage = state.pet.stage
+          if (newTotalCare >= 100 && state.pet.stage === 'baby') newStage = 'adult'
+          else if (newTotalCare >= 250 && state.pet.stage === 'adult') newStage = 'evolved'
+          
+          return {
+            pet: {
+              ...state.pet,
+              health: newHealth,
+              totalCareGiven: newTotalCare,
+              stage: newStage
+            },
+            totalXp: state.totalXp - xpCost
+          }
+        })
+        return true
+      },
+      
+      updatePetStatus: () => set(state => {
+        if (!state.pet) return state
+        
+        const now = new Date()
+        const hoursSinceLastFed = state.pet.lastFed 
+          ? (now.getTime() - new Date(state.pet.lastFed).getTime()) / (1000 * 60 * 60)
+          : 24
+        const hoursSinceLastPlayed = state.pet.lastPlayed
+          ? (now.getTime() - new Date(state.pet.lastPlayed).getTime()) / (1000 * 60 * 60)
+          : 24
+        
+        // Decrease stats over time
+        const hungerDecay = Math.min(state.pet.hunger, Math.floor(hoursSinceLastFed * 2))
+        const happinessDecay = Math.min(state.pet.happiness, Math.floor(hoursSinceLastPlayed * 1.5))
+        const healthDecay = state.pet.hunger < 20 || state.pet.happiness < 20 ? 5 : 0
+        
+        return {
+          pet: {
+            ...state.pet,
+            hunger: Math.max(0, state.pet.hunger - hungerDecay),
+            happiness: Math.max(0, state.pet.happiness - happinessDecay),
+            health: Math.max(0, state.pet.health - healthDecay)
+          }
+        }
       })
     }),
     {
@@ -344,8 +506,11 @@ export const useAppStore = create<AppState>()(
         dailyStats: state.dailyStats,
         quests: state.quests,
         weeklyXPGoal: state.weeklyXPGoal,
-        weeklyXPEarned: state.weeklyXPEarned
+        weeklyXPEarned: state.weeklyXPEarned,
+        pet: state.pet
       })
     }
   )
 )
+
+

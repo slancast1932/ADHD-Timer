@@ -4,7 +4,7 @@ import React, { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { ProgressRing } from '@/components/ui/ProgressRing'
-import { useTimer } from '@/hooks/useTimer'
+import { useTimer } from '@/contexts/TimerContext'
 import { useAppStore } from '@/lib/store'
 import { formatTime, formatDuration } from '@/lib/utils'
 import { 
@@ -339,3 +339,5 @@ const OnboardingModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     </div>
   )
 }
+
+

@@ -8,8 +8,9 @@ import { XPProgressBar } from '@/components/ui/XPProgressBar'
 import { QuestProgress } from '@/components/ui/QuestProgress'
 import { XPFlyUpManager, useXPAnimation } from '@/components/ui/XPFlyUp'
 import { LevelUpManager, useLevelUpAnimation } from '@/components/ui/LevelUpAnimation'
+import { PetComponent, PetCreationModal } from '@/components/ui/PetComponent'
 import { useAppStore } from '@/lib/store'
-import { Trophy, Star, CheckCircle, XCircle, Target, TrendingUp } from 'lucide-react'
+import { Trophy, Star, CheckCircle, XCircle, Target, TrendingUp, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export default function QuestsPage() {
@@ -21,12 +22,15 @@ export default function QuestsPage() {
     level, 
     claimPendingXp,
     weeklyXPGoal,
-    weeklyXPEarned 
+    weeklyXPEarned,
+    pet,
+    createPet
   } = useAppStore()
   const progressBarRef = useRef<HTMLDivElement>(null)
   const { animations, triggerXPAnimation, handleAnimationComplete } = useXPAnimation()
   const { animations: levelUpAnimations, triggerLevelUpAnimation, handleAnimationComplete: handleLevelUpComplete } = useLevelUpAnimation()
   const [previousLevel, setPreviousLevel] = useState(level)
+  const [showPetCreation, setShowPetCreation] = useState(false)
   
   // Watch for level changes and trigger animation
   useEffect(() => {
@@ -50,6 +54,11 @@ export default function QuestsPage() {
   
   const handleClaimAllXp = () => {
     claimPendingXp()
+  }
+  
+  const handleCreatePet = (type: 'dragon' | 'plant' | 'cat', name: string) => {
+    createPet(type, name)
+    setShowPetCreation(false)
   }
   
   return (
@@ -76,6 +85,31 @@ export default function QuestsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Pet System */}
+      {pet ? (
+        <PetComponent />
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Sparkles className="w-6 h-6 text-purple-500" />
+              <span>Adopt a Pet!</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground mb-4">
+              Use your XP to care for a virtual pet that grows as you focus! Feed, play, and heal your companion.
+            </p>
+            <Button 
+              onClick={() => setShowPetCreation(true)}
+              className="w-full"
+            >
+              Adopt Your First Pet
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Level Progress and Badge */}
       <Card ref={progressBarRef}>
@@ -148,6 +182,13 @@ export default function QuestsPage() {
           ))}
         </div>
       </div>
+      
+      {/* Pet Creation Modal */}
+      <PetCreationModal
+        isOpen={showPetCreation}
+        onClose={() => setShowPetCreation(false)}
+        onCreatePet={handleCreatePet}
+      />
     </div>
   )
 }
@@ -169,7 +210,7 @@ interface QuestCardProps {
 }
 
 const QuestCard: React.FC<QuestCardProps> = ({ quest, onClaim, showProgress = false }) => {
-  const cardRef = useRef<HTMLDivElement>(null)
+  const cardRef = useRef<HTMLButtonElement>(null)
   const getStatusIcon = () => {
     switch (quest.status) {
       case 'completed':
@@ -263,3 +304,5 @@ const QuestCard: React.FC<QuestCardProps> = ({ quest, onClaim, showProgress = fa
     </Card>
   )
 }
+
+

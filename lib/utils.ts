@@ -193,3 +193,5 @@ export function triggerConfetti() {
   const event = new CustomEvent('trigger-confetti')
   window.dispatchEvent(event)
 }
+
+

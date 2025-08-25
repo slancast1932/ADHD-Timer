@@ -271,7 +271,7 @@ export default function SettingsPage() {
             </div>
             <Button
               onClick={toggleReducedMotion}
-              variant={reducedMotion ? "default" : "outline"}
+              variant={reducedMotion ? "primary" : "outline"}
               size="sm"
             >
               {reducedMotion ? 'Enabled' : 'Disabled'}
@@ -287,7 +287,7 @@ export default function SettingsPage() {
             </div>
             <Button
               onClick={toggleHighContrast}
-              variant={highContrast ? "default" : "outline"}
+              variant={highContrast ? "primary" : "outline"}
               size="sm"
             >
               {highContrast ? 'Enabled' : 'Disabled'}
@@ -413,7 +413,7 @@ export default function SettingsPage() {
             </div>
             <Button
               onClick={toggleAutoStartBreaks}
-              variant={autoStartBreaks ? "default" : "outline"}
+              variant={autoStartBreaks ? "primary" : "outline"}
               size="sm"
             >
               {autoStartBreaks ? 'Enabled' : 'Disabled'}
@@ -494,8 +494,8 @@ export default function SettingsPage() {
             
             <Button 
               onClick={handleResetData}
-              variant={showResetConfirm ? "destructive" : "outline"}
-              className="flex items-center space-x-2"
+              variant={showResetConfirm ? "secondary" : "outline"}
+              className={`flex items-center space-x-2 ${showResetConfirm ? 'bg-red-600 text-white hover:bg-red-700' : ''}`}
             >
               <Trash2 className="w-4 h-4" />
               <span>

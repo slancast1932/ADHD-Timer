@@ -23,7 +23,7 @@ export function useTimer() {
   const startTimeRef = useRef<number>(0)
   const { defaultFocus, defaultShort, defaultLong, completionSound, addXp, completeSession, updateDailyStats, updateQuestsOnSessionComplete } = useAppStore()
   
-  // Initialize Web Worker
+  // Initialize Web Worker and recover timer state
   useEffect(() => {
     if (typeof window !== 'undefined') {
       workerRef.current = new Worker('/timer-worker.js')
@@ -40,7 +40,9 @@ export function useTimer() {
             }))
             break
           case 'COMPLETE':
-            handleTimerComplete()
+            // Clear any stored timer state on completion
+            localStorage.removeItem('timerState')
+            handleTimerComplete(payload.elapsed)
             break
           case 'TIME_UPDATE':
             setState(prev => ({
@@ -52,41 +54,103 @@ export function useTimer() {
         }
       }
       
+      // Try to recover timer state on page load
+      const savedTimerState = localStorage.getItem('timerState')
+      if (savedTimerState) {
+        try {
+          const timerState = JSON.parse(savedTimerState)
+          const now = Date.now()
+          const timeSinceStart = Math.floor((now - timerState.startTime) / 1000)
+          
+          if (timerState.isRunning && timeSinceStart < (timerState.elapsed + timerState.remaining)) {
+            // Timer should still be running
+            const newElapsed = Math.min(timeSinceStart, timerState.elapsed + timerState.remaining)
+            const newRemaining = Math.max(0, (timerState.elapsed + timerState.remaining) - timeSinceStart)
+            
+            setState({
+              isRunning: true,
+              isPaused: false,
+              remaining: newRemaining,
+              elapsed: newElapsed,
+              mode: timerState.mode
+            })
+            
+            startTimeRef.current = timerState.startTime
+            
+            if (newRemaining > 0) {
+              // Continue the timer from where it left off
+              workerRef.current.postMessage({ 
+                type: 'START', 
+                payload: { duration: newRemaining } 
+              })
+            } else {
+              // Timer should have completed while away
+              localStorage.removeItem('timerState')
+              handleTimerComplete(timerState.elapsed + timerState.remaining)
+            }
+          } else {
+            // Timer is no longer valid
+            localStorage.removeItem('timerState')
+          }
+        } catch (error) {
+          console.error('Error recovering timer state:', error)
+          localStorage.removeItem('timerState')
+        }
+      }
+      
       return () => {
         workerRef.current?.terminate()
       }
     }
   }, [])
   
-  // Handle page visibility changes
+  // Handle page visibility changes - ensure timer continues when tab is hidden
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.hidden && state.isRunning && !state.isPaused) {
-        // Page is hidden, timer continues in worker
-        startTimeRef.current = Date.now() - (state.elapsed * 1000)
-      } else if (!document.hidden && state.isRunning && !state.isPaused) {
-        // Page is visible again, reconcile time
+      if (!document.hidden && state.isRunning && !state.isPaused) {
+        // Page is visible again, sync with worker time
         if (workerRef.current) {
           workerRef.current.postMessage({ type: 'GET_TIME' })
         }
       }
+      // When hidden, the worker continues automatically - no action needed
+    }
+    
+    const handleBeforeUnload = () => {
+      // Keep timer running even if page unloads
+      if (state.isRunning && !state.isPaused) {
+        // Store timer state in localStorage for recovery
+        localStorage.setItem('timerState', JSON.stringify({
+          isRunning: state.isRunning,
+          mode: state.mode,
+          startTime: startTimeRef.current,
+          elapsed: state.elapsed,
+          remaining: state.remaining
+        }))
+      }
     }
     
     document.addEventListener('visibilitychange', handleVisibilityChange)
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
-  }, [state.isRunning, state.isPaused, state.elapsed])
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [state.isRunning, state.isPaused, state.elapsed, state.mode, state.remaining])
   
-  const handleTimerComplete = useCallback(() => {
+  const handleTimerComplete = useCallback((elapsedSeconds?: number) => {
     setState(prev => ({
       ...prev,
       isRunning: false,
       isPaused: false,
-      remaining: 0
+      remaining: 0,
+      elapsed: elapsedSeconds || prev.elapsed
     }))
     
-    // Calculate XP based on mode
-    const modeDurations = { focus: defaultFocus, short: defaultShort, long: defaultLong }
-    const minutes = Math.floor(modeDurations[state.mode] / 60)
+    // Use elapsed seconds from parameter or fallback to state
+    const finalElapsed = elapsedSeconds || state.elapsed
+    const minutes = Math.floor(finalElapsed / 60)
     const baseXp = getXpForSession(minutes)
     
     addXp(baseXp)
@@ -97,7 +161,7 @@ export function useTimer() {
     // Play sound and show confetti
     playCompletionSound(completionSound)
     triggerConfetti()
-  }, [state.mode, defaultFocus, defaultShort, defaultLong, completionSound, addXp, completeSession, updateDailyStats, updateQuestsOnSessionComplete])
+  }, [state.elapsed, completionSound, addXp, completeSession, updateDailyStats, updateQuestsOnSessionComplete])
   
   const startTimer = useCallback((mode: 'focus' | 'short' | 'long') => {
     const durations = { focus: defaultFocus, short: defaultShort, long: defaultLong }
@@ -157,6 +221,9 @@ export function useTimer() {
       workerRef.current.postMessage({ type: 'RESET' })
     }
     
+    // Clear any stored timer state
+    localStorage.removeItem('timerState')
+    
     setState(prev => ({
       ...prev,
       isRunning: false,
@@ -198,3 +265,4 @@ export function useTimer() {
     adjustTime
   }
 }
+

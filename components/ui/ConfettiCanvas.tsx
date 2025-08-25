@@ -103,3 +103,4 @@ export const ConfettiCanvas: React.FC = () => {
     document.body
   )
 }
+
