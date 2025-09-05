@@ -10,6 +10,8 @@ export interface TimerState {
   remaining: number
   elapsed: number
   mode: 'focus' | 'short' | 'long'
+  showSessionComplete: boolean
+  sessionJustCompleted: boolean
 }
 
 interface TimerContextType extends TimerState {
@@ -18,6 +20,9 @@ interface TimerContextType extends TimerState {
   resumeTimer: () => void
   resetTimer: () => void
   adjustTime: (mode: 'focus' | 'short' | 'long', adjustment: number) => void
+  handleSessionContinue: () => void
+  handleSessionBreak: () => void
+  dismissSessionComplete: () => void
 }
 
 const TimerContext = createContext<TimerContextType | null>(null)
@@ -28,7 +33,9 @@ export const TimerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     isPaused: false,
     remaining: 0,
     elapsed: 0,
-    mode: 'focus'
+    mode: 'focus',
+    showSessionComplete: false,
+    sessionJustCompleted: false
   })
   
   const [isClient, setIsClient] = useState(false)
@@ -41,7 +48,11 @@ export const TimerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     defaultFocus = 25 * 60, 
     defaultShort = 5 * 60, 
     defaultLong = 15 * 60, 
-    completionSound = 'gentle-chime', 
+    completionSound = 'gentle-chime',
+    playlistMode = false,
+    currentPlaylist = [],
+    currentPlaylistIndex = 0,
+    nextPlaylistTask = () => {},
     addXp = () => {}, 
     completeSession = () => {}, 
     updateDailyStats = () => {}, 
@@ -103,7 +114,9 @@ export const TimerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               isPaused: false,
               remaining: newRemaining,
               elapsed: newElapsed,
-              mode: timerState.mode
+              mode: timerState.mode,
+              showSessionComplete: false,
+              sessionJustCompleted: false
             })
             
             startTimeRef.current = timerState.startTime
@@ -175,7 +188,9 @@ export const TimerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       isRunning: false,
       isPaused: false,
       remaining: 0,
-      elapsed: elapsedSeconds || prev.elapsed
+      elapsed: elapsedSeconds || prev.elapsed,
+      showSessionComplete: true,
+      sessionJustCompleted: true
     }))
     
     // Use elapsed seconds from parameter or fallback to state
@@ -285,6 +300,51 @@ export const TimerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }))
     }
   }, [defaultFocus, defaultShort, defaultLong, state.isRunning])
+
+  const handleSessionContinue = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      showSessionComplete: false,
+      sessionJustCompleted: false
+    }))
+    
+    if (playlistMode && currentPlaylist.length > 0) {
+      nextPlaylistTask()
+      const nextIndex = currentPlaylistIndex + 1
+      if (nextIndex < currentPlaylist.length) {
+        const nextTask = currentPlaylist[nextIndex]
+        startTimer(nextTask.type)
+      }
+    } else {
+      // Default behavior - restart same timer type
+      startTimer(state.mode)
+    }
+  }, [playlistMode, currentPlaylist, currentPlaylistIndex, nextPlaylistTask, startTimer, state.mode])
+
+  const handleSessionBreak = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      showSessionComplete: false,
+      sessionJustCompleted: false
+    }))
+    
+    // Start appropriate break based on context
+    if (state.mode === 'focus') {
+      const breakType = Math.random() > 0.7 ? 'long' : 'short' // 30% chance of long break
+      startTimer(breakType)
+    } else {
+      // If coming from a break, start focus session
+      startTimer('focus')
+    }
+  }, [startTimer, state.mode])
+
+  const dismissSessionComplete = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      showSessionComplete: false,
+      sessionJustCompleted: false
+    }))
+  }, [])
   
   return (
     <TimerContext.Provider value={{
@@ -293,7 +353,10 @@ export const TimerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       pauseTimer,
       resumeTimer,
       resetTimer,
-      adjustTime
+      adjustTime,
+      handleSessionContinue,
+      handleSessionBreak,
+      dismissSessionComplete
     }}>
       {children}
     </TimerContext.Provider>

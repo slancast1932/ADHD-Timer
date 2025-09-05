@@ -9,6 +9,14 @@ export interface TimerMode {
   color: string
 }
 
+export interface PlaylistTask {
+  id: string
+  name: string
+  duration: number // in seconds
+  type: 'focus' | 'short' | 'long'
+  completed?: boolean
+}
+
 export interface Quest {
   id: string
   title: string
@@ -40,6 +48,12 @@ export interface AppState {
   defaultFocus: number
   defaultShort: number
   defaultLong: number
+  
+  // Playlist functionality
+  currentPlaylist: PlaylistTask[]
+  currentPlaylistIndex: number
+  playlistMode: boolean
+  sessionCompleteChoice: 'continue' | 'break' | null
   
   // User preferences
   reducedMotion: boolean
@@ -88,6 +102,14 @@ export interface AppState {
   updateQuestProgress: (questId: string, progress: number) => void
   updateQuestsOnSessionComplete: (minutes: number) => void
   resetData: () => void
+  
+  // Playlist actions
+  setPlaylist: (playlist: PlaylistTask[]) => void
+  addTaskToPlaylist: (task: PlaylistTask) => void
+  removeTaskFromPlaylist: (taskId: string) => void
+  setPlaylistMode: (enabled: boolean) => void
+  nextPlaylistTask: () => void
+  setSessionCompleteChoice: (choice: 'continue' | 'break' | null) => void
   
   // Pet actions
   createPet: (type: Pet['type'], name: string) => void
@@ -151,6 +173,12 @@ export const useAppStore = create<AppState>()(
       defaultFocus: 25 * 60, // 25 minutes
       defaultShort: 5 * 60,  // 5 minutes
       defaultLong: 15 * 60,  // 15 minutes
+      
+      // Playlist defaults
+      currentPlaylist: [],
+      currentPlaylistIndex: 0,
+      playlistMode: false,
+      sessionCompleteChoice: null,
       
       reducedMotion: false,
       highContrast: false,
@@ -350,6 +378,32 @@ export const useAppStore = create<AppState>()(
         pet: null
       }),
       
+      // Playlist actions
+      setPlaylist: (playlist) => set({ currentPlaylist: playlist, currentPlaylistIndex: 0 }),
+      
+      addTaskToPlaylist: (task) => set(state => ({
+        currentPlaylist: [...state.currentPlaylist, task]
+      })),
+      
+      removeTaskFromPlaylist: (taskId) => set(state => ({
+        currentPlaylist: state.currentPlaylist.filter(task => task.id !== taskId)
+      })),
+      
+      setPlaylistMode: (enabled) => set(state => ({
+        playlistMode: enabled,
+        currentPlaylistIndex: enabled ? 0 : state.currentPlaylistIndex
+      })),
+      
+      nextPlaylistTask: () => set(state => {
+        const nextIndex = state.currentPlaylistIndex + 1
+        if (nextIndex >= state.currentPlaylist.length) {
+          return { currentPlaylistIndex: 0, playlistMode: false }
+        }
+        return { currentPlaylistIndex: nextIndex }
+      }),
+      
+      setSessionCompleteChoice: (choice) => set({ sessionCompleteChoice: choice }),
+      
       // Pet functions
       createPet: (type, name) => set(state => {
         if (state.pet) return state // Pet already exists
@@ -491,6 +545,9 @@ export const useAppStore = create<AppState>()(
         defaultFocus: state.defaultFocus,
         defaultShort: state.defaultShort,
         defaultLong: state.defaultLong,
+        currentPlaylist: state.currentPlaylist,
+        currentPlaylistIndex: state.currentPlaylistIndex,
+        playlistMode: state.playlistMode,
         reducedMotion: state.reducedMotion,
         highContrast: state.highContrast,
         autoStartBreaks: state.autoStartBreaks,
@@ -512,5 +569,6 @@ export const useAppStore = create<AppState>()(
     }
   )
 )
+
 
 

@@ -4,6 +4,8 @@ import React, { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { ProgressRing } from '@/components/ui/ProgressRing'
+import { SessionCompleteModal } from '@/components/ui/SessionCompleteModal'
+import { DraggablePlaylistManager } from '@/components/ui/DraggablePlaylistManager'
 import { useTimer } from '@/contexts/TimerContext'
 import { useAppStore } from '@/lib/store'
 import { formatTime, formatDuration } from '@/lib/utils'
@@ -14,7 +16,8 @@ import {
   Plus, 
   Minus,
   Users,
-  Trophy
+  Trophy,
+  ListMusic
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -25,11 +28,16 @@ export default function DashboardPage() {
     remaining,
     elapsed,
     mode,
+    showSessionComplete,
+    sessionJustCompleted,
     startTimer,
     pauseTimer,
     resumeTimer,
     resetTimer,
-    adjustTime
+    adjustTime,
+    handleSessionContinue,
+    handleSessionBreak,
+    dismissSessionComplete
   } = useTimer()
   
   const { 
@@ -39,10 +47,14 @@ export default function DashboardPage() {
     pendingXp, 
     totalXp, 
     level,
-    currentStreak 
+    currentStreak,
+    playlistMode,
+    currentPlaylist,
+    currentPlaylistIndex
   } = useAppStore()
   
   const [showOnboarding, setShowOnboarding] = useState(false)
+  const [showPlaylistManager, setShowPlaylistManager] = useState(false)
   
   // Check if user has completed onboarding
   React.useEffect(() => {
@@ -63,8 +75,18 @@ export default function DashboardPage() {
   }
   
   const getCurrentDuration = () => {
+    if (playlistMode && currentPlaylist.length > 0 && currentPlaylistIndex < currentPlaylist.length) {
+      return currentPlaylist[currentPlaylistIndex].duration
+    }
     const durations = { focus: defaultFocus, short: defaultShort, long: defaultLong }
     return durations[mode]
+  }
+  
+  const getCurrentTaskName = () => {
+    if (playlistMode && currentPlaylist.length > 0 && currentPlaylistIndex < currentPlaylist.length) {
+      return currentPlaylist[currentPlaylistIndex].name
+    }
+    return null
   }
   
   const progress = getCurrentDuration() > 0 ? 1 - (remaining / getCurrentDuration()) : 0
@@ -105,8 +127,36 @@ export default function DashboardPage() {
       {/* Main Timer */}
       <div className="flex justify-center">
         <Card className="w-full max-w-2xl">
-          <CardHeader className="text-center">
-            <CardTitle className="text-3xl font-bold">Focus Timer</CardTitle>
+          <CardHeader className="text-center space-y-2">
+            <div className="flex items-center justify-between mb-2">
+              <Button
+                onClick={() => setShowPlaylistManager(!showPlaylistManager)}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <ListMusic className="w-4 h-4" />
+                {playlistMode ? 'Playlist Active' : 'Playlist'}
+                {currentPlaylist.length > 0 && (
+                  <span className="bg-primary text-primary-foreground rounded-full px-2 py-0.5 text-xs">
+                    {currentPlaylist.length}
+                  </span>
+                )}
+              </Button>
+              {playlistMode && currentPlaylist.length > 0 && (
+                <div className="text-sm text-muted-foreground">
+                  {currentPlaylistIndex + 1} of {currentPlaylist.length}
+                </div>
+              )}
+            </div>
+            <CardTitle className="text-3xl font-bold">
+              {getCurrentTaskName() || 'Focus Timer'}
+            </CardTitle>
+            {playlistMode && getCurrentTaskName() && (
+              <div className="text-sm text-muted-foreground">
+                From your focus playlist
+              </div>
+            )}
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Timer Display */}
@@ -124,6 +174,11 @@ export default function DashboardPage() {
                   <div className="text-lg text-muted-foreground capitalize">
                     {mode} Mode
                   </div>
+                  {getCurrentTaskName() && (
+                    <div className="text-sm text-muted-foreground mt-2 px-4 py-2 bg-primary/5 rounded-full">
+                      Current: {getCurrentTaskName()}
+                    </div>
+                  )}
                 </div>
               </ProgressRing>
             </div>
@@ -242,6 +297,24 @@ export default function DashboardPage() {
         </Card>
       </div>
       
+      {/* Playlist Manager */}
+      {showPlaylistManager && (
+        <div className="max-w-4xl mx-auto">
+          <DraggablePlaylistManager />
+        </div>
+      )}
+
+      {/* Session Complete Modal */}
+      {showSessionComplete && (
+        <SessionCompleteModal
+          sessionMinutes={Math.floor(elapsed / 60)}
+          sessionType={mode}
+          onContinue={handleSessionContinue}
+          onBreak={handleSessionBreak}
+          onClose={dismissSessionComplete}
+        />
+      )}
+
       {/* Onboarding Modal */}
       {showOnboarding && (
         <OnboardingModal onClose={() => setShowOnboarding(false)} />
@@ -339,5 +412,6 @@ const OnboardingModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     </div>
   )
 }
+
 
 
