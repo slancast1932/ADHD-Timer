@@ -212,15 +212,17 @@ function TaskItem({
 
 interface DraggablePlaylistManagerProps {
   className?: string
+  onStartPlaylist?: () => void
 }
 
-export const DraggablePlaylistManager: React.FC<DraggablePlaylistManagerProps> = ({ className }) => {
+export const DraggablePlaylistManager: React.FC<DraggablePlaylistManagerProps> = ({ className, onStartPlaylist }) => {
   const { 
     currentPlaylist, 
     playlistMode, 
     currentPlaylistIndex,
     setPlaylist,
-    setPlaylistMode
+    setPlaylistMode,
+    resetPlaylistIndex
   } = useAppStore()
   
   const [showCustomTask, setShowCustomTask] = useState(false)
@@ -303,6 +305,26 @@ export const DraggablePlaylistManager: React.FC<DraggablePlaylistManagerProps> =
     return currentPlaylist.reduce((total, task) => total + task.duration, 0)
   }
 
+  const handleStartPlaylist = () => {
+    if (currentPlaylist.length === 0) return
+    
+    // Enable playlist mode and reset to first task
+    setPlaylistMode(true)
+    resetPlaylistIndex()
+    
+    // Reset all tasks to not completed
+    const resetPlaylist = currentPlaylist.map(task => ({
+      ...task,
+      completed: false
+    }))
+    setPlaylist(resetPlaylist)
+    
+    // Start the first task
+    if (onStartPlaylist) {
+      onStartPlaylist()
+    }
+  }
+
   return (
     <Card className={cn("w-full max-w-4xl", className)}>
       <CardHeader>
@@ -316,13 +338,26 @@ export const DraggablePlaylistManager: React.FC<DraggablePlaylistManagerProps> =
                 {currentPlaylist.length} tasks • {formatDuration(Math.floor(getTotalTime() / 60))}
               </div>
             )}
-            <Button
-              onClick={() => setPlaylistMode(!playlistMode)}
-              variant={playlistMode ? "primary" : "outline"}
-              size="sm"
-            >
-              {playlistMode ? 'Auto-Advance ON' : 'Enable Auto-Advance'}
-            </Button>
+            <div className="flex items-center gap-2">
+              {currentPlaylist.length > 0 && !playlistMode && (
+                <Button
+                  onClick={handleStartPlaylist}
+                  variant="primary"
+                  size="sm"
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  <Play className="w-4 h-4 mr-2" />
+                  Start Playlist
+                </Button>
+              )}
+              <Button
+                onClick={() => setPlaylistMode(!playlistMode)}
+                variant={playlistMode ? "primary" : "outline"}
+                size="sm"
+              >
+                {playlistMode ? 'Auto-Advance ON' : 'Enable Auto-Advance'}
+              </Button>
+            </div>
           </div>
         </div>
         

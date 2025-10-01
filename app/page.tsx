@@ -17,7 +17,8 @@ import {
   Minus,
   Users,
   Trophy,
-  ListMusic
+  ListMusic,
+  Square
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -31,6 +32,7 @@ export default function DashboardPage() {
     showSessionComplete,
     sessionJustCompleted,
     startTimer,
+    startPlaylist,
     pauseTimer,
     resumeTimer,
     resetTimer,
@@ -50,7 +52,8 @@ export default function DashboardPage() {
     currentStreak,
     playlistMode,
     currentPlaylist,
-    currentPlaylistIndex
+    currentPlaylistIndex,
+    setPlaylistMode
   } = useAppStore()
   
   const [showOnboarding, setShowOnboarding] = useState(false)
@@ -87,6 +90,16 @@ export default function DashboardPage() {
       return currentPlaylist[currentPlaylistIndex].name
     }
     return null
+  }
+
+  const handleStartPlaylist = () => {
+    // Keep playlist manager open when timer starts
+    startPlaylist() // Start the playlist timer
+  }
+
+  const handleStopPlaylist = () => {
+    setPlaylistMode(false)
+    resetTimer()
   }
   
   const progress = getCurrentDuration() > 0 ? 1 - (remaining / getCurrentDuration()) : 0
@@ -153,8 +166,27 @@ export default function DashboardPage() {
               {getCurrentTaskName() || 'Focus Timer'}
             </CardTitle>
             {playlistMode && getCurrentTaskName() && (
-              <div className="text-sm text-muted-foreground">
-                From your focus playlist
+              <div className="space-y-2">
+                <div className="text-sm text-muted-foreground">
+                  From your focus playlist
+                </div>
+                <div className="flex items-center justify-center gap-2">
+                  <div className="text-xs text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
+                    Task {currentPlaylistIndex + 1} of {currentPlaylist.length}
+                  </div>
+                  <div className="flex gap-1">
+                    {currentPlaylist.map((_, index) => (
+                      <div
+                        key={index}
+                        className={cn(
+                          "w-2 h-2 rounded-full transition-all",
+                          index < currentPlaylistIndex ? "bg-green-500" :
+                          index === currentPlaylistIndex ? "bg-blue-500" : "bg-gray-200"
+                        )}
+                      />
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
           </CardHeader>
@@ -224,6 +256,18 @@ export default function DashboardPage() {
                 <RotateCcw className="w-5 h-5 mr-2" />
                 Reset
               </Button>
+
+              {playlistMode && (
+                <Button 
+                  onClick={handleStopPlaylist} 
+                  variant="outline" 
+                  size="lg"
+                  className="px-6 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+                >
+                  <Square className="w-4 h-4 mr-2" />
+                  Stop Playlist
+                </Button>
+              )}
             </div>
             
             {/* Mode Selection */}
@@ -300,7 +344,7 @@ export default function DashboardPage() {
       {/* Playlist Manager */}
       {showPlaylistManager && (
         <div className="max-w-4xl mx-auto">
-          <DraggablePlaylistManager />
+          <DraggablePlaylistManager onStartPlaylist={handleStartPlaylist} />
         </div>
       )}
 

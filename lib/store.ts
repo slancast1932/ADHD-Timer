@@ -29,17 +29,11 @@ export interface Quest {
   target?: number
 }
 
-export interface Pet {
+export interface Runner {
   id: string
   name: string
-  type: 'dragon' | 'plant' | 'cat'
-  stage: 'baby' | 'adult' | 'evolved'
-  hunger: number // 0-100
-  happiness: number // 0-100
-  health: number // 0-100
-  totalCareGiven: number
-  lastFed?: Date
-  lastPlayed?: Date
+  terrain: 'sunny' | 'park' | 'forest' | 'beach' | 'rainy' | 'snowy'
+  sessionsCompleted: number // Number of focus sessions completed
   createdAt: Date
 }
 
@@ -59,6 +53,8 @@ export interface AppState {
   reducedMotion: boolean
   highContrast: boolean
   autoStartBreaks: boolean
+  continueInBackground: boolean
+  preventTimerPause: boolean
   reminderTime?: string
   completionSound: SoundType
   
@@ -83,14 +79,16 @@ export interface AppState {
   weeklyXPGoal: number
   weeklyXPEarned: number
   
-  // Pet system
-  pet: Pet | null
+  // Runner system
+  runner: Runner | null
   
   // Actions
   setTimerDefaults: (focus: number, short: number, long: number) => void
   toggleReducedMotion: () => void
   toggleHighContrast: () => void
   toggleAutoStartBreaks: () => void
+  toggleContinueInBackground: () => void
+  togglePreventTimerPause: () => void
   setReminderTime: (time: string) => void
   setCompletionSound: (sound: SoundType) => void
   addXp: (amount: number) => void
@@ -109,14 +107,14 @@ export interface AppState {
   removeTaskFromPlaylist: (taskId: string) => void
   setPlaylistMode: (enabled: boolean) => void
   nextPlaylistTask: () => void
+  resetPlaylistIndex: () => void
   setSessionCompleteChoice: (choice: 'continue' | 'break' | null) => void
   
-  // Pet actions
-  createPet: (type: Pet['type'], name: string) => void
-  feedPet: (xpCost: number) => boolean
-  playWithPet: (xpCost: number) => boolean
-  healPet: (xpCost: number) => boolean
-  updatePetStatus: () => void
+  // Runner actions
+  createRunner: (name: string) => void
+  progressRunner: () => void
+  updateRunnerName: (name: string) => void
+  resetRunnerProgress: () => void
 }
 
 const calculateLevel = (xp: number): number => {
@@ -183,6 +181,8 @@ export const useAppStore = create<AppState>()(
       reducedMotion: false,
       highContrast: false,
       autoStartBreaks: false,
+      continueInBackground: false,
+      preventTimerPause: false,
       completionSound: 'gentle-chime',
       
       totalXp: 0,
@@ -207,7 +207,7 @@ export const useAppStore = create<AppState>()(
       weeklyXPGoal: 500,
       weeklyXPEarned: 0,
       
-      pet: null,
+      runner: null,
       
       // Actions
       setTimerDefaults: (focus, short, long) => set({
@@ -226,6 +226,14 @@ export const useAppStore = create<AppState>()(
       
       toggleAutoStartBreaks: () => set(state => ({
         autoStartBreaks: !state.autoStartBreaks
+      })),
+      
+      toggleContinueInBackground: () => set(state => ({
+        continueInBackground: !state.continueInBackground
+      })),
+
+      togglePreventTimerPause: () => set(state => ({
+        preventTimerPause: !state.preventTimerPause
       })),
       
       setReminderTime: (time) => set({ reminderTime: time }),
@@ -247,41 +255,77 @@ export const useAppStore = create<AppState>()(
         }
       }),
       
-      completeSession: (minutes) => set(state => {
-        const newSessionsCompleted = state.sessionsCompleted + 1
-        const newTotalMinutes = state.totalMinutes + minutes
-        
-        // Update streak logic
-        const today = new Date().toISOString().split('T')[0]
-        const yesterday = new Date()
-        yesterday.setDate(yesterday.getDate() - 1)
-        const yesterdayStr = yesterday.toISOString().split('T')[0]
-        
-        const todayStats = state.dailyStats.find(stat => stat.date === today)
-        const yesterdayStats = state.dailyStats.find(stat => stat.date === yesterdayStr)
-        
-        let newCurrentStreak = state.currentStreak
-        if (yesterdayStats && yesterdayStats.minutes > 0) {
-          newCurrentStreak += 1
-        } else if (todayStats && todayStats.minutes === 0) {
-          newCurrentStreak = 1
-        }
-        
-        return {
-          sessionsCompleted: newSessionsCompleted,
-          totalMinutes: newTotalMinutes,
-          currentStreak: newCurrentStreak,
-          longestStreak: Math.max(newCurrentStreak, state.longestStreak)
-        }
-      }),
+      completeSession: (minutes) => {
+        console.log('🎯 completeSession called with minutes:', minutes)
+        const state = get()
+        console.log('📊 Before runner progress - runner state:', state.runner)
+
+        // Progress runner first
+        const { progressRunner } = get()
+        progressRunner()
+
+        const newState = get()
+        console.log('📊 After runner progress - runner state:', newState.runner)
+
+        // Then update session stats
+        set(state => {
+          const newSessionsCompleted = state.sessionsCompleted + 1
+          const newTotalMinutes = state.totalMinutes + minutes
+
+          // Update streak logic
+          const today = new Date().toISOString().split('T')[0]
+          const yesterday = new Date()
+          yesterday.setDate(yesterday.getDate() - 1)
+          const yesterdayStr = yesterday.toISOString().split('T')[0]
+
+          const todayStats = state.dailyStats.find(stat => stat.date === today)
+          const yesterdayStats = state.dailyStats.find(stat => stat.date === yesterdayStr)
+
+          let newCurrentStreak = state.currentStreak
+          if (yesterdayStats && yesterdayStats.minutes > 0) {
+            newCurrentStreak += 1
+          } else if (todayStats && todayStats.minutes === 0) {
+            newCurrentStreak = 1
+          }
+
+          return {
+            sessionsCompleted: newSessionsCompleted,
+            totalMinutes: newTotalMinutes,
+            currentStreak: newCurrentStreak,
+            longestStreak: Math.max(newCurrentStreak, state.longestStreak)
+          }
+        })
+      },
       
       updateDailyStats: (minutes) => set(state => {
         const today = new Date().toISOString().split('T')[0]
-        const newDailyStats = state.dailyStats.map(stat => 
-          stat.date === today 
-            ? { ...stat, minutes: stat.minutes + minutes, sessions: stat.sessions + 1 }
-            : stat
-        )
+        
+        // Check if today exists in the array
+        const todayExists = state.dailyStats.some(stat => stat.date === today)
+        
+        let newDailyStats = [...state.dailyStats]
+        
+        if (todayExists) {
+          // Update existing day
+          newDailyStats = state.dailyStats.map(stat => 
+            stat.date === today 
+              ? { ...stat, minutes: stat.minutes + minutes, sessions: stat.sessions + 1 }
+              : stat
+          )
+        } else {
+          // Add today and maintain 14-day window
+          newDailyStats.push({
+            date: today,
+            minutes: minutes,
+            sessions: 1
+          })
+          
+          // Keep only the last 14 days, sorted by date
+          newDailyStats = newDailyStats
+            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+            .slice(-14)
+        }
+        
         return { dailyStats: newDailyStats }
       }),
       
@@ -375,7 +419,7 @@ export const useAppStore = create<AppState>()(
         quests: getDefaultQuests(),
         weeklyXPGoal: 500,
         weeklyXPEarned: 0,
-        pet: null
+        runner: null
       }),
       
       // Playlist actions
@@ -401,143 +445,86 @@ export const useAppStore = create<AppState>()(
         }
         return { currentPlaylistIndex: nextIndex }
       }),
+
+      resetPlaylistIndex: () => set({ currentPlaylistIndex: 0 }),
       
       setSessionCompleteChoice: (choice) => set({ sessionCompleteChoice: choice }),
       
-      // Pet functions
-      createPet: (type, name) => set(state => {
-        if (state.pet) return state // Pet already exists
-        
-        const newPet: Pet = {
+      // Runner functions
+      createRunner: (name) => set(state => {
+        if (state.runner) return state // Runner already exists
+
+        const newRunner: Runner = {
           id: crypto.randomUUID(),
           name,
-          type,
-          stage: 'baby',
-          hunger: 100,
-          happiness: 100,
-          health: 100,
-          totalCareGiven: 0,
+          terrain: 'sunny',
+          sessionsCompleted: 0,
           createdAt: new Date()
         }
-        
-        return { pet: newPet }
+
+        return { runner: newRunner }
       }),
       
-      feedPet: (xpCost) => {
-        const state = get()
-        if (!state.pet || state.totalXp < xpCost) return false
-        
-        set(state => {
-          if (!state.pet) return state
-          
-          const newHunger = Math.min(100, state.pet.hunger + 25)
-          const newHealth = Math.min(100, state.pet.health + 5)
-          const newTotalCare = state.pet.totalCareGiven + 1
-          
-          // Check for evolution
-          let newStage = state.pet.stage
-          if (newTotalCare >= 100 && state.pet.stage === 'baby') newStage = 'adult'
-          else if (newTotalCare >= 250 && state.pet.stage === 'adult') newStage = 'evolved'
-          
-          return {
-            pet: {
-              ...state.pet,
-              hunger: newHunger,
-              health: newHealth,
-              totalCareGiven: newTotalCare,
-              stage: newStage,
-              lastFed: new Date()
-            },
-            totalXp: state.totalXp - xpCost
-          }
-        })
-        return true
-      },
-      
-      playWithPet: (xpCost) => {
-        const state = get()
-        if (!state.pet || state.totalXp < xpCost) return false
-        
-        set(state => {
-          if (!state.pet) return state
-          
-          const newHappiness = Math.min(100, state.pet.happiness + 30)
-          const newHealth = Math.min(100, state.pet.health + 3)
-          const newTotalCare = state.pet.totalCareGiven + 1
-          
-          // Check for evolution
-          let newStage = state.pet.stage
-          if (newTotalCare >= 100 && state.pet.stage === 'baby') newStage = 'adult'
-          else if (newTotalCare >= 250 && state.pet.stage === 'adult') newStage = 'evolved'
-          
-          return {
-            pet: {
-              ...state.pet,
-              happiness: newHappiness,
-              health: newHealth,
-              totalCareGiven: newTotalCare,
-              stage: newStage,
-              lastPlayed: new Date()
-            },
-            totalXp: state.totalXp - xpCost
-          }
-        })
-        return true
-      },
-      
-      healPet: (xpCost) => {
-        const state = get()
-        if (!state.pet || state.totalXp < xpCost) return false
-        
-        set(state => {
-          if (!state.pet) return state
-          
-          const newHealth = Math.min(100, state.pet.health + 40)
-          const newTotalCare = state.pet.totalCareGiven + 1
-          
-          // Check for evolution
-          let newStage = state.pet.stage
-          if (newTotalCare >= 100 && state.pet.stage === 'baby') newStage = 'adult'
-          else if (newTotalCare >= 250 && state.pet.stage === 'adult') newStage = 'evolved'
-          
-          return {
-            pet: {
-              ...state.pet,
-              health: newHealth,
-              totalCareGiven: newTotalCare,
-              stage: newStage
-            },
-            totalXp: state.totalXp - xpCost
-          }
-        })
-        return true
-      },
-      
-      updatePetStatus: () => set(state => {
-        if (!state.pet) return state
-        
-        const now = new Date()
-        const hoursSinceLastFed = state.pet.lastFed 
-          ? (now.getTime() - new Date(state.pet.lastFed).getTime()) / (1000 * 60 * 60)
-          : 24
-        const hoursSinceLastPlayed = state.pet.lastPlayed
-          ? (now.getTime() - new Date(state.pet.lastPlayed).getTime()) / (1000 * 60 * 60)
-          : 24
-        
-        // Decrease stats over time
-        const hungerDecay = Math.min(state.pet.hunger, Math.floor(hoursSinceLastFed * 2))
-        const happinessDecay = Math.min(state.pet.happiness, Math.floor(hoursSinceLastPlayed * 1.5))
-        const healthDecay = state.pet.hunger < 20 || state.pet.happiness < 20 ? 5 : 0
-        
+      progressRunner: () => set(state => {
+        console.log('🏃 progressRunner called')
+        if (!state.runner) {
+          console.log('❌ No runner found!')
+          return state
+        }
+
+        // Handle legacy runners that might not have sessionsCompleted
+        const currentSessions = state.runner.sessionsCompleted ?? 0
+        console.log('📈 Current sessions:', currentSessions, 'Terrain:', state.runner.terrain)
+        const newSessionsCompleted = currentSessions + 1
+        console.log('📈 New sessions will be:', newSessionsCompleted)
+
+        // Terrain progression based on sessions completed
+        let newTerrain = state.runner.terrain
+        if (newSessionsCompleted >= 5 && state.runner.terrain === 'sunny') newTerrain = 'park'
+        else if (newSessionsCompleted >= 12 && state.runner.terrain === 'park') newTerrain = 'forest'
+        else if (newSessionsCompleted >= 20 && state.runner.terrain === 'forest') newTerrain = 'beach'
+        else if (newSessionsCompleted >= 30 && state.runner.terrain === 'beach') newTerrain = 'rainy'
+        else if (newSessionsCompleted >= 42 && state.runner.terrain === 'rainy') newTerrain = 'snowy'
+
+        if (newTerrain !== state.runner.terrain) {
+          console.log('🌍 Terrain changing from', state.runner.terrain, 'to', newTerrain)
+        }
+
+        const updatedRunner = {
+          ...state.runner,
+          sessionsCompleted: newSessionsCompleted,
+          terrain: newTerrain
+        }
+
+        console.log('✅ Updated runner:', updatedRunner)
+
         return {
-          pet: {
-            ...state.pet,
-            hunger: Math.max(0, state.pet.hunger - hungerDecay),
-            happiness: Math.max(0, state.pet.happiness - happinessDecay),
-            health: Math.max(0, state.pet.health - healthDecay)
+          runner: updatedRunner
+        }
+      }),
+
+      updateRunnerName: (name) => set(state => {
+        if (!state.runner) return state
+
+        return {
+          runner: {
+            ...state.runner,
+            name: name.trim()
           }
         }
-      })
+      }),
+
+      resetRunnerProgress: () => set(state => {
+        if (!state.runner) return state
+
+        return {
+          runner: {
+            ...state.runner,
+            terrain: 'sunny',
+            sessionsCompleted: 0
+          }
+        }
+      }),
     }),
     {
       name: 'focusrun-storage',
@@ -551,6 +538,8 @@ export const useAppStore = create<AppState>()(
         reducedMotion: state.reducedMotion,
         highContrast: state.highContrast,
         autoStartBreaks: state.autoStartBreaks,
+        continueInBackground: state.continueInBackground,
+        preventTimerPause: state.preventTimerPause,
         reminderTime: state.reminderTime,
         completionSound: state.completionSound,
         totalXp: state.totalXp,
@@ -564,7 +553,7 @@ export const useAppStore = create<AppState>()(
         quests: state.quests,
         weeklyXPGoal: state.weeklyXPGoal,
         weeklyXPEarned: state.weeklyXPEarned,
-        pet: state.pet
+        runner: state.runner
       })
     }
   )

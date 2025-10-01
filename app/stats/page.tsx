@@ -41,7 +41,29 @@ export default function StatsPage() {
   const avgSessionLength = sessionsCompleted > 0 ? Math.round(totalMinutes / sessionsCompleted) : 0
   const thisWeekTotal = thisWeekData.reduce((sum, day) => sum + day.value, 0)
   const lastWeekTotal = dailyStats.slice(-14, -7).reduce((sum, stat) => sum + stat.minutes, 0)
-  const weeklyGrowth = lastWeekTotal > 0 ? Math.round(((thisWeekTotal - lastWeekTotal) / lastWeekTotal) * 100) : 0
+  
+  // Calculate weekly growth with proper edge case handling
+  let weeklyGrowth = 0
+  if (lastWeekTotal > 0) {
+    weeklyGrowth = Math.round(((thisWeekTotal - lastWeekTotal) / lastWeekTotal) * 100)
+  } else if (thisWeekTotal > 0) {
+    // If there was no activity last week but there is this week, show it as positive growth
+    weeklyGrowth = 100
+  }
+  
+  // Debug logging for weekly growth calculation
+  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+    console.log('Weekly Growth Debug:', {
+      thisWeekTotal,
+      lastWeekTotal,
+      weeklyGrowth,
+      thisWeekData: thisWeekData.map(d => ({ label: d.label, value: d.value })),
+      lastWeekData: dailyStats.slice(-14, -7).map(stat => ({ 
+        date: stat.date, 
+        minutes: stat.minutes 
+      }))
+    })
+  }
   
   const handleShareProgress = async () => {
     setIsGeneratingShareCard(true)

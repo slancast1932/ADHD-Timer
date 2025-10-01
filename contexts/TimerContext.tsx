@@ -16,6 +16,7 @@ export interface TimerState {
 
 interface TimerContextType extends TimerState {
   startTimer: (mode: 'focus' | 'short' | 'long') => void
+  startPlaylist: () => void
   pauseTimer: () => void
   resumeTimer: () => void
   resetTimer: () => void
@@ -49,10 +50,13 @@ export const TimerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     defaultShort = 5 * 60, 
     defaultLong = 15 * 60, 
     completionSound = 'gentle-chime',
+    continueInBackground = false,
+    preventTimerPause = false,
     playlistMode = false,
     currentPlaylist = [],
     currentPlaylistIndex = 0,
     nextPlaylistTask = () => {},
+    resetPlaylistIndex = () => {},
     addXp = () => {}, 
     completeSession = () => {}, 
     updateDailyStats = () => {}, 
@@ -96,9 +100,9 @@ export const TimerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
       }
       
-      // Try to recover timer state on page load
+      // Try to recover timer state on page load only if continueInBackground is enabled
       const savedTimerState = localStorage.getItem('timerState')
-      if (savedTimerState) {
+      if (savedTimerState && (continueInBackground || preventTimerPause)) {
         try {
           const timerState = JSON.parse(savedTimerState)
           const now = Date.now()
@@ -140,29 +144,46 @@ export const TimerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           console.error('Error recovering timer state:', error)
           localStorage.removeItem('timerState')
         }
+      } else if (savedTimerState && !continueInBackground && !preventTimerPause) {
+        // Clear any stored state if both background continuation and prevent timer pause are disabled
+        localStorage.removeItem('timerState')
       }
       
       return () => {
         workerRef.current?.terminate()
       }
-  }, [isClient])
+  }, [isClient, continueInBackground, preventTimerPause])
   
-  // Handle page visibility changes - ensure timer continues when tab is hidden
+  // Handle page visibility changes - pause timer by default unless continueInBackground or preventTimerPause is enabled
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (!document.hidden && state.isRunning && !state.isPaused) {
-        // Page is visible again, sync with worker time
-        if (workerRef.current) {
-          workerRef.current.postMessage({ type: 'GET_TIME' })
+      if (document.hidden) {
+        // Page is now hidden
+        if (state.isRunning && !state.isPaused && !continueInBackground && !preventTimerPause) {
+          // Pause the timer if both background continuation and prevent timer pause are disabled
+          if (workerRef.current) {
+            workerRef.current.postMessage({ type: 'PAUSE' })
+          }
+          setState(prev => ({
+            ...prev,
+            isPaused: true
+          }))
+        }
+        // If continueInBackground or preventTimerPause is enabled, timer continues running
+      } else {
+        // Page is visible again
+        if (state.isRunning && !state.isPaused) {
+          // Sync with worker time if timer is running
+          if (workerRef.current) {
+            workerRef.current.postMessage({ type: 'GET_TIME' })
+          }
         }
       }
-      // When hidden, the worker continues automatically - no action needed
     }
     
     const handleBeforeUnload = () => {
-      // Keep timer running even if page unloads
-      if (state.isRunning && !state.isPaused) {
-        // Store timer state in localStorage for recovery
+      // Only store timer state if background continuation or prevent timer pause is enabled
+      if ((continueInBackground || preventTimerPause) && state.isRunning && !state.isPaused) {
         localStorage.setItem('timerState', JSON.stringify({
           isRunning: state.isRunning,
           mode: state.mode,
@@ -170,6 +191,9 @@ export const TimerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           elapsed: state.elapsed,
           remaining: state.remaining
         }))
+      } else {
+        // Clear stored state if both background continuation and prevent timer pause are disabled
+        localStorage.removeItem('timerState')
       }
     }
     
@@ -180,7 +204,7 @@ export const TimerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       window.removeEventListener('beforeunload', handleBeforeUnload)
     }
-  }, [state.isRunning, state.isPaused, state.elapsed, state.mode, state.remaining])
+  }, [state.isRunning, state.isPaused, state.elapsed, state.mode, state.remaining, continueInBackground, preventTimerPause])
   
   const handleTimerComplete = useCallback((elapsedSeconds?: number) => {
     setState(prev => ({
@@ -230,6 +254,36 @@ export const TimerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       })
     }
   }, [defaultFocus, defaultShort, defaultLong])
+
+  const startPlaylist = useCallback(() => {
+    if (currentPlaylist.length === 0) return
+    
+    const firstTask = currentPlaylist[0]
+    if (!firstTask) return
+    
+    // Ensure playlist mode is enabled and index is reset
+    resetPlaylistIndex()
+    
+    setState(prev => ({
+      ...prev,
+      isRunning: true,
+      isPaused: false,
+      remaining: firstTask.duration,
+      elapsed: 0,
+      mode: firstTask.type,
+      showSessionComplete: false,
+      sessionJustCompleted: false
+    }))
+    
+    startTimeRef.current = Date.now()
+    
+    if (workerRef.current) {
+      workerRef.current.postMessage({ 
+        type: 'START', 
+        payload: { duration: firstTask.duration } 
+      })
+    }
+  }, [currentPlaylist, resetPlaylistIndex])
   
   const pauseTimer = useCallback(() => {
     if (workerRef.current) {
@@ -327,16 +381,10 @@ export const TimerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       showSessionComplete: false,
       sessionJustCompleted: false
     }))
-    
-    // Start appropriate break based on context
-    if (state.mode === 'focus') {
-      const breakType = Math.random() > 0.7 ? 'long' : 'short' // 30% chance of long break
-      startTimer(breakType)
-    } else {
-      // If coming from a break, start focus session
-      startTimer('focus')
-    }
-  }, [startTimer, state.mode])
+
+    // Don't auto-start timer when user chooses "Take a Break"
+    // Let them manually choose when to continue
+  }, [state.mode])
 
   const dismissSessionComplete = useCallback(() => {
     setState(prev => ({
@@ -350,6 +398,7 @@ export const TimerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     <TimerContext.Provider value={{
       ...state,
       startTimer,
+      startPlaylist,
       pauseTimer,
       resumeTimer,
       resetTimer,

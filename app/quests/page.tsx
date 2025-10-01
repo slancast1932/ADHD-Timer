@@ -8,7 +8,7 @@ import { XPProgressBar } from '@/components/ui/XPProgressBar'
 import { QuestProgress } from '@/components/ui/QuestProgress'
 import { XPFlyUpManager, useXPAnimation } from '@/components/ui/XPFlyUp'
 import { LevelUpManager, useLevelUpAnimation } from '@/components/ui/LevelUpAnimation'
-import { PetComponent, PetCreationModal } from '@/components/ui/PetComponent'
+import { RunnerComponent, RunnerCreationModal } from '@/components/ui/RunnerComponent'
 import { useAppStore } from '@/lib/store'
 import { Trophy, Star, CheckCircle, XCircle, Target, TrendingUp, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -23,14 +23,14 @@ export default function QuestsPage() {
     claimPendingXp,
     weeklyXPGoal,
     weeklyXPEarned,
-    pet,
-    createPet
+    runner,
+    createRunner
   } = useAppStore()
   const progressBarRef = useRef<HTMLDivElement>(null)
   const { animations, triggerXPAnimation, handleAnimationComplete } = useXPAnimation()
   const { animations: levelUpAnimations, triggerLevelUpAnimation, handleAnimationComplete: handleLevelUpComplete } = useLevelUpAnimation()
   const [previousLevel, setPreviousLevel] = useState(level)
-  const [showPetCreation, setShowPetCreation] = useState(false)
+  const [showRunnerCreation, setShowRunnerCreation] = useState(false)
   
   // Watch for level changes and trigger animation
   useEffect(() => {
@@ -56,9 +56,9 @@ export default function QuestsPage() {
     claimPendingXp()
   }
   
-  const handleCreatePet = (type: 'dragon' | 'plant' | 'cat', name: string) => {
-    createPet(type, name)
-    setShowPetCreation(false)
+  const handleCreateRunner = (name: string) => {
+    createRunner(name)
+    setShowRunnerCreation(false)
   }
   
   return (
@@ -86,26 +86,26 @@ export default function QuestsPage() {
         </CardContent>
       </Card>
 
-      {/* Pet System */}
-      {pet ? (
-        <PetComponent />
+      {/* Runner System */}
+      {runner ? (
+        <RunnerComponent className="col-span-full" />
       ) : (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <Sparkles className="w-6 h-6 text-purple-500" />
-              <span>Adopt a Pet!</span>
+              <span>Start Your Running Journey!</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground mb-4">
-              Use your XP to care for a virtual pet that grows as you focus! Feed, play, and heal your companion.
+              Create your runner and progress through different terrains! Train, upgrade gear, and rest to keep your runner in top condition.
             </p>
-            <Button 
-              onClick={() => setShowPetCreation(true)}
+            <Button
+              onClick={() => setShowRunnerCreation(true)}
               className="w-full"
             >
-              Adopt Your First Pet
+              Create Your Runner
             </Button>
           </CardContent>
         </Card>
@@ -183,11 +183,11 @@ export default function QuestsPage() {
         </div>
       </div>
       
-      {/* Pet Creation Modal */}
-      <PetCreationModal
-        isOpen={showPetCreation}
-        onClose={() => setShowPetCreation(false)}
-        onCreatePet={handleCreatePet}
+      {/* Runner Creation Modal */}
+      <RunnerCreationModal
+        isOpen={showRunnerCreation}
+        onClose={() => setShowRunnerCreation(false)}
+        onCreateRunner={handleCreateRunner}
       />
     </div>
   )

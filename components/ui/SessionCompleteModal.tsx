@@ -5,12 +5,13 @@ import { Card, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { useAppStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
-import { 
-  Coffee, 
-  Play, 
-  CheckCircle2, 
+import {
+  Coffee,
+  Play,
+  CheckCircle2,
   Sparkles,
-  Heart
+  Heart,
+  X
 } from 'lucide-react'
 
 interface SessionCompleteModalProps {
@@ -84,13 +85,21 @@ export const SessionCompleteModal: React.FC<SessionCompleteModalProps> = ({
   }, [])
 
   const getCompletionMessage = () => {
+    // Check if this is a playlist task
+    if (playlistMode && currentPlaylist.length > 0 && currentPlaylistIndex < currentPlaylist.length) {
+      const completedTask = currentPlaylist[currentPlaylistIndex]
+      return `Task completed: ${completedTask.name}!`
+    }
+
+    // For non-playlist sessions, always show as task completion since that's what the user was doing
+    // The timer type (focus/short/long) is just the timer setting, but the user was working on tasks
     switch (sessionType) {
       case 'focus':
-        return "You've completed a focus session!"
+        return "Task completed!"
       case 'short':
-        return "Short break completed!"
+        return "Break finished!"
       case 'long':
-        return "Long break finished!"
+        return "Break finished!"
       default:
         return "Session complete!"
     }
@@ -114,7 +123,17 @@ export const SessionCompleteModal: React.FC<SessionCompleteModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-md mx-auto border-2 border-primary/20 shadow-2xl">
+      <Card className="w-full max-w-md mx-auto border-2 border-primary/20 shadow-2xl relative">
+        {/* Close button */}
+        <Button
+          onClick={onClose}
+          variant="ghost"
+          size="sm"
+          className="absolute top-4 right-4 w-8 h-8 p-0 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
+        >
+          <X className="w-4 h-4" />
+        </Button>
+
         <CardContent className="p-8 text-center space-y-6">
           <BreathingCircle />
           

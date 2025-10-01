@@ -24,7 +24,11 @@ export function formatDuration(minutes: number): string {
 }
 
 export function getXpForSession(minutes: number): number {
-  return Math.floor(minutes * 2) // 2 XP per minute
+  // Base XP rate: 2 XP per minute
+  // Bonus for longer sessions: additional 0.1 XP per minute for every minute over 15
+  const baseXP = minutes * 2
+  const bonusXP = Math.max(0, minutes - 15) * 0.1
+  return Math.floor(baseXP + bonusXP)
 }
 
 export type SoundType = 'gentle-chime' | 'success-bells' | 'nature-birds' | 'soft-piano' | 'meditation-bowl' | 'digital-beep'

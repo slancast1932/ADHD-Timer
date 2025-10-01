@@ -29,12 +29,16 @@ export default function SettingsPage() {
     reducedMotion,
     highContrast,
     autoStartBreaks,
+    continueInBackground,
+    preventTimerPause,
     reminderTime,
     completionSound,
     setTimerDefaults,
     toggleReducedMotion,
     toggleHighContrast,
     toggleAutoStartBreaks,
+    toggleContinueInBackground,
+    togglePreventTimerPause,
     setReminderTime,
     setCompletionSound,
     resetData
@@ -417,6 +421,38 @@ export default function SettingsPage() {
               size="sm"
             >
               {autoStartBreaks ? 'Enabled' : 'Disabled'}
+            </Button>
+          </div>
+          
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="font-medium">Continue Timer in Background</div>
+              <div className="text-sm text-muted-foreground">
+                Keep timer running when switching tabs or minimizing the app
+              </div>
+            </div>
+            <Button
+              onClick={toggleContinueInBackground}
+              variant={continueInBackground ? "primary" : "outline"}
+              size="sm"
+            >
+              {continueInBackground ? 'Enabled' : 'Disabled'}
+            </Button>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="font-medium">Prevent Timer Pause</div>
+              <div className="text-sm text-muted-foreground">
+                Don't pause timer when leaving the app or switching tabs
+              </div>
+            </div>
+            <Button
+              onClick={togglePreventTimerPause}
+              variant={preventTimerPause ? "primary" : "outline"}
+              size="sm"
+            >
+              {preventTimerPause ? 'Enabled' : 'Disabled'}
             </Button>
           </div>
           
